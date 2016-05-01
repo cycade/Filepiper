@@ -5,9 +5,10 @@
 		<title>Filepiper</title>
 	</head>
 	<body>
-		<form id="uploadForm" method="POST" enctype="multipart/form-data" action="/upload">
+		<form method="POST" enctype="multipart/form-data" action="/upload/upload">
 			<p>Just upload</p>
 			<input type="FILE" id="file" name="file"></input>
+			<input type="hidden" name="token" value={{ . }}></input>
 			<input type="SUBMIT" value="upload"></input>
 		</form>
 	</body>

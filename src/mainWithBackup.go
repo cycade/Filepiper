@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
     "strconv"
-    "os"
 )
 
 type Users struct {
@@ -95,21 +94,24 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseMultipartForm(32 << 20)
-	file, handler, err := r.FormFile("file")
+	file, _, err := r.FormFile("file")
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("FormFile: ", err.Error())
 		return
 	}
-	defer file.Close()
-	fmt.Fprintf(w, "%v", handler.Header)
-	f, err := os.OpenFile("ufile/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Fatal("Close: ", err.Error())
+			return
+		}
+	}()
+	bytes, err := ioutil.ReadAll(file)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("ReadAll: ", err.Error())
 		return
 	}
-	defer f.Close()
-	io.Copy(f, file)
+
+	w.Write(bytes)
 }
 
 func main() {
@@ -125,3 +127,8 @@ func main() {
 		log.Fatal("ListenAndServe: ", err.Error())
 	}
 }
+
+
+
+
+
