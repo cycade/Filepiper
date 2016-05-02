@@ -4,15 +4,13 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"io"
+	//"io"
 	"net/http"
 	"gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
     "strconv"
-    "os"
+    //"os"
 )
-
-const dbURL = "127.0.0.1:27017"
 
 type Users struct {
 	Username string
@@ -27,7 +25,6 @@ func check(err error) {
 	}
 }
 
-
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	fmt.Fprintf(w, "Hello! This is a amazing Skydrive!")
@@ -39,10 +36,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		t, _ := template.ParseFiles("login.gtpl")
 		t.Execute(w, nil)
 	} else {
-		session, err := mgo.Dial(dbURL)
-		check(err)
+		const URL = "127.0.0.1:27017"
+		session, err := mgo.Dial(URL)
+		if err != nil {
+			panic(err)
+		}
 		result := Users{}
-		where := session.DB("FPusers").C("Users")
+		where := session.DB("FPusers").C("col")
 		user := r.Form["username"][0]
 		pass := r.Form["password"][0]
 		err = where.Find(bson.M{"username": user, "password": pass}).One(&result)
@@ -61,10 +61,13 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 		t, _ := template.ParseFiles("signup.gtpl")
 		t.Execute(w, nil)
 	} else {
-		session, err := mgo.Dial(dbURL)
-		check(err)
+		const URL = "127.0.0.1:27017"
+		session, err := mgo.Dial(URL)
+		if err != nil {
+			panic(err)
+		}
 		resultin := Users{}
-		where := session.DB("FPusers").C("Users")
+		where := session.DB("FPusers").C("col")
 		userInfo := r.Form
 		err = where.Find(bson.M{"username": userInfo["username"][0]}).One(&resultin)
 		if err != nil {
@@ -90,20 +93,27 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var uploadTemplate = template.Must(template.ParseFiles("update.html"))
-	err := uploadTemplate.Execute(w, nil)
-	check(err)
+	if err := uploadTemplate.Execute(w, nil); err != nil {
+		log.Fatal("Execute: ", err.Error())
+		return
+	}
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseMultipartForm(32 << 20)
-	file, handler, err := r.FormFile("file")
-	check(err)
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	defer file.Close()
 	fmt.Fprintf(w, "The file has been uploaded.")
-	f, err := os.OpenFile("ufile/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666)
+	f, err := db.GridFS("Files").Create("mute.txt")
 	check(err)
-	defer f.Close()
-	io.Copy(f, file)
+	n, err := f.Write(file)
+	check(err)
+	err = f.Close()
+	check(err)
 }
 
 func main() {
