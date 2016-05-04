@@ -5,11 +5,20 @@
 		<title>Filepiper</title>
 	</head>
 	<body>
-		<form method="POST" enctype="multipart/form-data" action="/upload/upload">
-			<p>Just upload</p>
-			<input type="FILE" id="file" name="file"></input>
-			<input type="hidden" name="token" value={{ . }}></input>
-			<input type="SUBMIT" value="upload"></input>
-		</form>
+		<div>
+			<form method="POST" enctype="multipart/form-data" action="/upload/upload">
+				<p>Just upload</p>
+				<input type="FILE" id="file" name="file"></input>
+				<input type="hidden" name="token" value={{ . }}></input>
+				<input type="SUBMIT" value="upload"></input>
+			</form>
+		</div>
+		<div>
+			<form method="POST" action="/download">
+				<p>Your Extraction Code Here!</p>
+				<input type="text" name="extractCode"></input>
+				<input type="submit" value="提取文件">
+			</form>
+		</div>
 	</body>
 </html>

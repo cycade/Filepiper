@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
     "strconv"
+    "crypto/md5"
 )
+
+const dbURL = "127.0.0.1:27017"
 
 type Users struct {
 	Username string
@@ -18,6 +21,13 @@ type Users struct {
 	Telephonenumber int
 }
 
+
+
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
 
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
@@ -30,13 +40,10 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		t, _ := template.ParseFiles("login.gtpl")
 		t.Execute(w, nil)
 	} else {
-		const URL = "127.0.0.1:27017"
-		session, err := mgo.Dial(URL)
-		if err != nil {
-			panic(err)
-		}
+		session, err := mgo.Dial(dbURL)
+		check(err)
 		result := Users{}
-		where := session.DB("FPusers").C("col")
+		where := session.DB("FPusers").C("Users")
 		user := r.Form["username"][0]
 		pass := r.Form["password"][0]
 		err = where.Find(bson.M{"username": user, "password": pass}).One(&result)
@@ -48,20 +55,16 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func signupHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	if r.Method == "GET" {
 		t, _ := template.ParseFiles("signup.gtpl")
 		t.Execute(w, nil)
 	} else {
-		const URL = "127.0.0.1:27017"
-		session, err := mgo.Dial(URL)
-		if err != nil {
-			panic(err)
-		}
+		session, err := mgo.Dial(dbURL)
+		check(err)
 		resultin := Users{}
-		where := session.DB("FPusers").C("col")
+		where := session.DB("FPusers").C("Users")
 		userInfo := r.Form
 		err = where.Find(bson.M{"username": userInfo["username"][0]}).One(&resultin)
 		if err != nil {
@@ -83,36 +86,40 @@ func signupHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-
-
 func indexHandler(w http.ResponseWriter, r *http.Request) {
 	var uploadTemplate = template.Must(template.ParseFiles("update.html"))
-	if err := uploadTemplate.Execute(w, nil); err != nil {
-		log.Fatal("Execute: ", err.Error())
-		return
-	}
+	err := uploadTemplate.Execute(w, nil)
+	check(err)
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	file, _, err := r.FormFile("file")
+	r.ParseMultipartForm(32 << 20)
+	file, handler, err := r.FormFile("file")
 	if err != nil {
-		log.Fatal("FormFile: ", err.Error())
-		return
+		fmt.Fprintf(w, "You should choose a file to UPLOAD.")
 	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			log.Fatal("Close: ", err.Error())
-			return
-		}
-	}()
-	bytes, err := ioutil.ReadAll(file)
+	UploadFileName := handler.Filename // 获取上传文件名
+	defer file.Close()
+
+	session, err := mgo.Dial(dbURL)
+	check(err)
+	defer session.Close()
+	
+	db := session.DB("FPusers").GridFS("Files")
+	dataset, err := db.Open(UploadFileName)
 	if err != nil {
-		log.Fatal("ReadAll: ", err.Error())
-		return
+		dataset, err = db.Create(UploadFileName)
+		check(err)
 	}
 
-	w.Write(bytes)
+	_, err = io.Copy(dataset, file)
+	check(err)
+	defer dataset.Close()
+
+	fmt.Fprintf(w, "The file has been uploaded and md5 is and the md5 is %s", dataset.Id())
 }
+
+
 
 func main() {
 	fmt.Println("Server starting.")
@@ -127,8 +134,4 @@ func main() {
 		log.Fatal("ListenAndServe: ", err.Error())
 	}
 }
-
-
-
-
 
