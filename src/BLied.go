@@ -129,7 +129,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "The file has been uploaded %s and md5 is %s", fileId, fileMD5) 
 }
 
-
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	session, err := mgo.Dial(dbURL)
@@ -143,9 +142,16 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		fmt.Fprintf(w, "The file is not exist.")
 	} else {
-		fmt.Fprintf(w, "The file is downloading. Please wait!")
-	}
+		//fmt.Fprintf(w, "The file is downloading. Please wait!")
+	
 	fmt.Println(result)
+
+	var downloadFile *mgo.GridFile
+    downloadFile, err = gfs.OpenId(result.Id)
+    check(err)
+    defer downloadFile.Close()
+    http.ServeContent(w, r, result.Filename, downloadFile.UploadDate(), downloadFile)
+	}
 }
 
 
