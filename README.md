@@ -1,29 +1,31 @@
 # FilePiper
 
-## 我的云U盘真的叫这个名字
+## 已经实现的功能
+* 登录、注册
+* 上传文件、生成md5、按md5提取下载
+
 ***
 
-## 说说我这一周都干了啥
-* 复习了一遍Golang的语法 >> [A Tour of Go](https://tour.golang.org/welcome/1)
-* 复习了一些http的内容 >> http权威指南
-* 看完了Go Web编程的前九章 >> [Go web编程](https://github.com/astaxie/build-web-application-with-golang)
-* 研究了一些leanote的源码，但是并没有搞懂多少 >> [leanote](https://github.com/leanote/leanote)
-* 试用了一下MongoDB，看了一点MongoDB权威指南
-* 看了一下数据库驱动mgo的文档 >> [mgo](http://labix.org/mgo)
-* 用Go在无框架的情况下，连接MongoDB，实现了注册，登录，上传文件的功能，并在vps上面跑起来了
+## 这周有啥新发现
+* 这个页面很有意思 >> [Effective Go](http://www.hellogcc.org/effective_go.html)
+* 似乎搞明白Ajax是怎么工作的了
 
 ## 遇到的问题
-* 曼曼前辈说MongoDB这个数据库有问题(😢)
-* 需要搞懂Ajax是怎么工作的
-* Golang的标准库net/http看的不是很懂
+* 这周在画图，就是赶作业，看的东西太少
+* 我发现，Go的标准库是如此有用
 
-## 下周干啥
-* 我觉得，我把Ajax交互能完成就不错了
+## 接下来要做的事
+* 要有一个具体的AjaxHandeler
+* 提取码用md5太长了，要换一种生成方式
+* 要有上传文件的第三方分享
+* 要用cookie和session来记录用户登录状态
+* 要有登出
+* 建立用户个人页面
+* 完善第三方注册、登录
+* 改写为MVC结构
 
 ## 我还想干啥
 * ~~上天~~
-* 尽量吧所有的加分项都完成
-* 如果都完成了我想做个前端看看
-* 如果做完前端我想用php+mysql再做一个
-<p>
-以上，我帮舍友写js作业去了😊
+* 尽量把所有的加分项都完成
+* 如果都完成了我想做个简单的前端
+* 如果做完前端我想用MEAN再做一个
