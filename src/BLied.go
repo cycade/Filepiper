@@ -143,18 +143,18 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "The file is not exist.")
 	} else {
 		//fmt.Fprintf(w, "The file is downloading. Please wait!")
-	
-	fmt.Println(result)
+		fmt.Println(result)
 
-	var downloadFile *mgo.GridFile
-    downloadFile, err = gfs.OpenId(result.Id)
-    check(err)
-    defer downloadFile.Close()
-    http.ServeContent(w, r, result.Filename, downloadFile.UploadDate(), downloadFile)
+		var downloadFile *mgo.GridFile
+	    downloadFile, err = gfs.OpenId(result.Id)
+	    check(err)
+	    defer downloadFile.Close()
+	    http.ServeContent(w, r, result.Filename, downloadFile.UploadDate(), downloadFile)
 	}
 }
-
-
+// 测试提取文件
+// 80c10e3864f0c22788a3c0cb0bb736a9
+// cf192aa9baccc274293bcb1b162a5ffb
 
 func main() {
 	fmt.Println("Server starting.")
@@ -164,6 +164,7 @@ func main() {
 	http.HandleFunc("/signup", signupHandler)
 	http.HandleFunc("/upload/upload", uploadHandler)
 	http.HandleFunc("/download", downloadHandler)
+	http.HandleFunc("/404", http.NotFound)
 
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
