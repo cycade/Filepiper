@@ -39,6 +39,23 @@ func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Hello! This is a amazing Skydrive!")
 }
 
+// 随机生成四位 string 格式提取码
+func ecodeProducer() string {
+	var seed = [62]string{"A", "B", "C", "D", "E", "F", "G",
+		"H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R",
+		"S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c",
+		"d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
+		"o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y",
+		"z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"}
+
+	randomNumber := rand.New(rand.NewSource(time.Now().UnixNano()))
+	extractCode := ""
+	for i := 0; i < 4; i++ {
+		extractCode += seed[randomNumber.Intn(61)]
+	}
+	return extractCode
+}
+
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		// 如果用GET方式请求，则渲染update.html文件
@@ -66,12 +83,17 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = io.Copy(gfile, file)
 		check(err)
 		gfile.Close()
+
 		// 将新建的 *GridFile 文件打开并获md5值
 		fileConfig, err := gfs.Open(UploadFileName)
 		check(err)
 		fileMD5 := fileConfig.MD5()
 		defer fileConfig.Close()
-		// 在客户端输出md5
+		
+		// 新建
+		ecode := ecodeProducer()
+		
+		// 在客户端输出提取码
 		fmt.Fprintf(w, "The ExtractCode is %s", fileMD5) 
 	}
 }
@@ -105,6 +127,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
 // 测试提取文件
 // cf192aa9baccc274293bcb1b162a5ffb
 
