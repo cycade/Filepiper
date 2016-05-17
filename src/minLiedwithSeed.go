@@ -9,9 +9,16 @@ import (
 	"gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
     "time"
+    "math/rand"
+    "strings"
 )
 
+// 本机数据库地址
 const dbURL = "127.0.0.1:27017"
+// 提取码本 理论上四位提取码可对应62*62*62*62 = 14776336个文件
+const seed = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890"
+
+
 // 建立关于用户信息的数据结构
 type Users struct {
 	Username string
@@ -27,33 +34,58 @@ type gfsFile struct {
 	MD5 string
 	Filename string
 }
+// 建立关于上传文件信息的结构
+type metaFile struct{
+	Ecode string
+	Filename string
+	MD5 string
+	UploadDate time.Time
+	DownloadTimes int
+	IsValid bool
+}
+
+
 // 通用的检查错误函数，在一般情况下使用
 func check(err error) {
 	if err != nil {
 		panic(err)
 	}
 }
-
+// 显示首页欢迎画面，可以去掉了
 func welcomeHandler(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	fmt.Fprintf(w, "Hello! This is a amazing Skydrive!")
 }
 
-// 随机生成四位 string 格式提取码
-func ecodeProducer() string {
-	var seed = [62]string{"A", "B", "C", "D", "E", "F", "G",
-		"H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R",
-		"S", "T", "U", "V", "W", "X", "Y", "Z", "a", "b", "c",
-		"d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n",
-		"o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y",
-		"z", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0"}
 
+// 随机生成四位 string 格式提取码
+func ecodeGenerator() string {
 	randomNumber := rand.New(rand.NewSource(time.Now().UnixNano()))
 	extractCode := ""
 	for i := 0; i < 4; i++ {
-		extractCode += seed[randomNumber.Intn(61)]
+		extractCode += string(seed[randomNumber.Intn(61)])
 	}
 	return extractCode
+}
+// 生成上传文件的metaInfo
+func metaInfoGenerator(Filename, MD5 string, UploadDate time.Time) metaFile {
+	metaInfo := metaFile{ecodeGenerator(), Filename, MD5, UploadDate,
+		0, true}
+	return metaInfo
+}
+// 将生成的metaInfo填入到metafiles数据表中
+func metaInfotoDB(metaInfo metaFile) {
+	session, err := mgo.Dial(dbURL)
+	check(err)
+	metafiles := session.DB("Filepiper").C("metafiles")
+	result := metaFile{}
+	err = metafiles.Find(bson.M{"Ecode": metaInfo.Ecode}).One(&result)
+	if err != nil {
+		err = metafiles.Insert(&metaInfo)
+	} else {
+		metaInfo.Ecode = ecodeGenerator()
+		metaInfotoDB(metaInfo)
+	}
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -76,7 +108,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		check(err)
 		defer session.Close()
 		// 创建一个类型为 *GridFile 的文件
-		gfs := session.DB("FPusers").GridFS("Files")
+		gfs := session.DB("Filepiper").GridFS("fs")
 		gfile, err := gfs.Create(UploadFileName)
 		check(err)
 		// io.Copy 将file的内容复制到gfile中
@@ -88,13 +120,42 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		fileConfig, err := gfs.Open(UploadFileName)
 		check(err)
 		fileMD5 := fileConfig.MD5()
+		fileUploadDate := fileConfig.UploadDate()
 		defer fileConfig.Close()
 		
-		// 新建
-		ecode := ecodeProducer()
+		// 调用函数生成提取码对应表
+		metaInfo := metaInfoGenerator(UploadFileName, fileMD5, fileUploadDate)
+		metaInfotoDB(metaInfo)
 		
 		// 在客户端输出提取码
-		fmt.Fprintf(w, "The ExtractCode is %s", fileMD5) 
+		fmt.Fprintf(w, "The ExtractCode is %s", metaInfo.Ecode) 
+	}
+}
+
+
+// 检查提取码中的每个字符是否在seed中
+func ContainsAll(seed, ecode string) bool {
+	judgement := ""
+	for i := 0; i < 4 ; i++ {
+		if strings.Contains(seed, string(ecode[i])) {
+			judgement += "t"
+		} else {
+			judgement += "f"
+		}
+	}
+	
+	if strings.Contains(judgement, "f") {
+		return false
+	} else {
+		return true
+	}
+}
+// 在ContainsAll的基础上检查提取码的长度是否合法
+func checkEcode(ecode string) bool {
+	if len(ecode) == 4 && ContainsAll(seed, ecode) {
+		return true
+	} else {
+		return false
 	}
 }
 
@@ -105,12 +166,17 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		check(err)
 	} else {
 		r.ParseForm()
+		extractCode := r.Form["extractCode"][0]
+		if checkEcode(extractCode) == false {
+			fmt.Fprintf(w, "You have to put a exactly ExtractCode!")
+			return
+		}
+
 		session, err := mgo.Dial(dbURL)
 		check(err)
 		defer session.Close()
 
-		gfs := session.DB("FPusers").GridFS("Files")
-		extractCode := r.Form["extractCode"][0]
+		gfs := session.DB("Filepiper").GridFS("fs")
 		result := gfsFile{}
 		err = gfs.Find(bson.M{"md5": extractCode}).One(&result)
 		if err != nil {
@@ -128,9 +194,10 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// 测试提取文件
-// cf192aa9baccc274293bcb1b162a5ffb
 
+
+// 测试提取文件
+// UUJL and md5 is cf192aa9baccc274293bcb1b162a5ffb
 func main() {
 	fmt.Println("Server starting.")
 	http.HandleFunc("/", welcomeHandler)
