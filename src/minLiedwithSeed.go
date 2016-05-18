@@ -77,6 +77,7 @@ func metaInfoGenerator(Filename, MD5 string, UploadDate time.Time) metaFile {
 func metaInfotoDB(metaInfo metaFile) {
 	session, err := mgo.Dial(dbURL)
 	check(err)
+	defer session.Close()
 	metafiles := session.DB("Filepiper").C("metafiles")
 	result := metaFile{}
 	err = metafiles.Find(bson.M{"Ecode": metaInfo.Ecode}).One(&result)
@@ -122,13 +123,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		fileMD5 := fileConfig.MD5()
 		fileUploadDate := fileConfig.UploadDate()
 		defer fileConfig.Close()
-		
+
 		// 调用函数生成提取码对应表
 		metaInfo := metaInfoGenerator(UploadFileName, fileMD5, fileUploadDate)
 		metaInfotoDB(metaInfo)
-		
+
 		// 在客户端输出提取码
-		fmt.Fprintf(w, "The ExtractCode is %s", metaInfo.Ecode) 
+		fmt.Fprintf(w, "The ExtractCode is %s", metaInfo.Ecode)
 	}
 }
 
@@ -143,7 +144,7 @@ func ContainsAll(seed, ecode string) bool {
 			judgement += "f"
 		}
 	}
-	
+
 	if strings.Contains(judgement, "f") {
 		return false
 	} else {
@@ -159,6 +160,17 @@ func checkEcode(ecode string) bool {
 	}
 }
 
+func metaInfoFind(ecode string) (metaFile, error) {
+	session, err := mgo.Dial(dbURL)
+	check(err)
+	defer session.Close()
+
+	metafiles := session.DB("Filepiper").C("metafiles")
+	result := metaFile{}
+	err = metafiles.Find(bson.M{"ecode": ecode}).One(&result)
+	return result, err
+}
+
 func downloadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		var uploadTemplate = template.Must(template.ParseFiles("update.html"))
@@ -166,21 +178,28 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		check(err)
 	} else {
 		r.ParseForm()
-		extractCode := r.Form["extractCode"][0]
-		if checkEcode(extractCode) == false {
+		ecode := r.Form["extractCode"][0]
+		if checkEcode(ecode) == false {
 			fmt.Fprintf(w, "You have to put a exactly ExtractCode!")
 			return
 		}
-
+		// 连接mongodb服务器
 		session, err := mgo.Dial(dbURL)
 		check(err)
 		defer session.Close()
 
+		metaInfo, err := metaInfoFind(ecode)
+		if err != nil {
+			fmt.Fprintf(w, "The extractCode is Invalid or the file does not exists.")
+			return
+		}
+
 		gfs := session.DB("Filepiper").GridFS("fs")
 		result := gfsFile{}
-		err = gfs.Find(bson.M{"md5": extractCode}).One(&result)
+		err = gfs.Find(bson.M{"md5": metaInfo.MD5}).One(&result)
 		if err != nil {
-			fmt.Fprintf(w, "The file is not exist.")
+			fmt.Fprintf(w, "The file does not exist.")
+			return
 		} else {
 			//fmt.Fprintf(w, "The file is downloading. Please wait!")
 			fmt.Println(result)
@@ -189,7 +208,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 		    downloadFile, err = gfs.OpenId(result.Id)
 		    check(err)
 		    defer downloadFile.Close()
-		    http.ServeContent(w, r, result.Filename, downloadFile.UploadDate(), downloadFile)
+		    http.ServeContent(w, r, metaInfo.Filename, downloadFile.UploadDate(), downloadFile)
 		}
 	}
 }
@@ -198,6 +217,7 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 
 // 测试提取文件
 // UUJL and md5 is cf192aa9baccc274293bcb1b162a5ffb
+// mmQk and md5 is cf192aa9baccc274293bcb1b162a5ffb
 func main() {
 	fmt.Println("Server starting.")
 	http.HandleFunc("/", welcomeHandler)
