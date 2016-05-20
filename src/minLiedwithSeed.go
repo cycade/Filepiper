@@ -201,14 +201,17 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "The file does not exist.")
 			return
 		} else {
-			//fmt.Fprintf(w, "The file is downloading. Please wait!")
-			fmt.Println(result)
+			// fmt.Fprintf(w, "The file is downloading. Please wait!")
+			fmt.Println(metaInfo.Filename) // 在服务端打印确保找对了文件
+			w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", metaInfo.Filename))
+        	// w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 
 			var downloadFile *mgo.GridFile
 		    downloadFile, err = gfs.OpenId(result.Id)
 		    check(err)
 		    defer downloadFile.Close()
-		    http.ServeContent(w, r, metaInfo.Filename, downloadFile.UploadDate(), downloadFile)
+			// http.ServeContent(w, r, metaInfo.Filename, downloadFile.UploadDate(), downloadFile)
+			io.Copy(w, downloadFile)
 		}
 	}
 }
