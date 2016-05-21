@@ -52,12 +52,15 @@ func check(err error) {
 	}
 }
 // 显示首页欢迎画面，可以去掉了
-func welcomeHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseForm()
-	fmt.Fprintf(w, "Hello! This is a amazing Skydrive!")
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+    if r.URL.Path == "/" {
+        http.Redirect(w, r, "/upload", http.StatusFound)
+    } else {
+	    t, err := template.ParseFiles("notFound.html")
+	    check(err)
+	    t.Execute(w, nil)
+ 	}
 }
-
-
 // 随机生成四位 string 格式提取码
 func ecodeGenerator() string {
 	randomNumber := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -92,7 +95,7 @@ func metaInfotoDB(metaInfo metaFile) {
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		// 如果用GET方式请求，则渲染update.html文件
-		var uploadTemplate = template.Must(template.ParseFiles("update.html"))
+		var uploadTemplate = template.Must(template.ParseFiles("upload.html"))
 		err := uploadTemplate.Execute(w, nil)
 		check(err)
 	} else {
@@ -171,14 +174,14 @@ func metaInfoFind(ecode string) (metaFile, error) {
 	return result, err
 }
 
-func downloadHandler(w http.ResponseWriter, r *http.Request) {
+func checkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		var uploadTemplate = template.Must(template.ParseFiles("update.html"))
 		err := uploadTemplate.Execute(w, nil)
 		check(err)
 	} else {
 		r.ParseForm()
-		ecode := r.Form["extractCode"][0]
+		ecode := r.FormValue("ajax_post_data")
 		if checkEcode(ecode) == false {
 			fmt.Fprintf(w, "You have to put a exactly ExtractCode!")
 			return
@@ -223,10 +226,10 @@ func downloadHandler(w http.ResponseWriter, r *http.Request) {
 // mmQk and md5 is cf192aa9baccc274293bcb1b162a5ffb
 func main() {
 	fmt.Println("Server starting.")
-	http.HandleFunc("/", welcomeHandler)
+	http.HandleFunc("/", notFoundHandler)
 	http.HandleFunc("/upload", uploadHandler)
-	http.HandleFunc("/download", downloadHandler)
-	http.HandleFunc("/404", http.NotFound)
+	http.HandleFunc("/check", checkHandler)
+	// http.HandleFunc("/download", downloadHandler)
 
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {

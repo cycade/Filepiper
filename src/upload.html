@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+		<title>Filepiper</title>
+		<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.0/jquery.min.js"></script>
+	    <script>
+	    $(document).ready(function() {
+	        $('#extract').click(function() {
+	            $.ajax({
+	                url: 'check',
+	                type: 'post',
+	                dataType: 'html',
+	                data: {ajax_post_data: $("#ecode").val()},
+	                success: function(data) {
+						if (typeof(data) === "string") {
+	                    	$('#result').html(data);
+						}
+	                },
+	            });
+	        });
+	    });
+	    </script>
+	</head>
+	<body>
+		<div>
+			<form method="POST" enctype="multipart/form-data" action="/upload">
+				<p><h1>Just upload</h1></p>
+				<input type="FILE" id="file" name="file"></input>
+				<input type="hidden" name="token" value={{ . }}></input>
+				<input type="SUBMIT" value="上传文件"></input>
+			</form>
+		</div>
+		<div>
+			<p>Your Extraction Code Here!</p>
+			<input id="ecode" type="text" name="extractCode" style="width: 237px;"></input>
+			<input id="extract" type="button" value="提取文件"/>
+			<div id="result"></div>
+		</div>
+	</body>
+</html>
