@@ -176,12 +176,20 @@ func metaInfoFind(ecode string) (metaFile, error) {
 
 func checkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
-		var uploadTemplate = template.Must(template.ParseFiles("update.html"))
+		var uploadTemplate = template.Must(template.ParseFiles("upload.html"))
 		err := uploadTemplate.Execute(w, nil)
 		check(err)
 	} else {
 		r.ParseForm()
-		ecode := r.FormValue("ajax_post_data")
+
+		var ecode string
+		if _, ok := r.Form["extractCode"]; ok {
+			ecode = r.Form["extractCode"][0]
+		} else {
+			ecode = r.FormValue("ajax_post_data")
+		}
+
+		fmt.Println(ecode)
 		if checkEcode(ecode) == false {
 			fmt.Fprintf(w, "You have to put a exactly ExtractCode!")
 			return
